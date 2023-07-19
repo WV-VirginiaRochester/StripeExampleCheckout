@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Donate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="css/base.css" rel="stylesheet" />
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="/register.js" defer></script>
+</head>
+<body>
+    <main>
+        <h1>Sample Donate Page</h1>
+
+
+        <p>
+            This page gives a sample of how we can integrate with Stripe with the bare minimum of information. We need an email address for the customer, the frequency of donation and the amount of the donation
+        </p>
+        <p>
+            I have also included an example choice of what the donation might be for, linked to a product item in Stripe.
+        </p>
+        <form id="signup-form">
+            <label>
+                Email
+                <input id="email" type="text" placeholder="Email address" value="test@example.com" required />
+            </label>
+            <p />
+            <label>
+                How often
+                <select id="frequency">
+                    <option value="one-off">One Off</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+            </label>
+            <p />
+            <label>
+                Enter an amount to donate
+                <input id="pledgeAmount" type="number" required />
+            </label>
+            <p />
+            <label>
+                Which Product?
+                <select id="product">
+                    <option value="prod_OI8JKBM2Hm0TtC">Child Sponsorship</option>
+                    <option value="prod_OI8KwtsKIEs9J0">Emergency Response</option>
+                    <option value="prod_OI8LK2dZNvIYCS">Gift Catalogue</option>
+                </select>
+            </label>
+            <p />
+            <button type="submit">
+                Donate
+            </button>
+        </form>
+        <p>This page gets the minimum necessary to create a customer and create a payment intent (for one-off or monthly subscription) in Stripe. On the next page, the payment intent client id is used to mount the card element to capture card data</p>
+        <p>Things to consider: </p>
+        <ul>
+            <li>What data do we need to capture at this point to create the customer and product / payment information in Stripe?</li>
+            <li>If this is a returning customer should we look for a customer record already in Stripe - maybe find by email address?</li>
+        </ul>
+    </main>
+    
+</body>
+</html>

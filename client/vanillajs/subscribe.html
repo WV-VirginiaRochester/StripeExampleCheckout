@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Subscribe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="css/base.css" rel="stylesheet" />
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="subscribe.js" defer></script>
+  </head>
+  <body>
+      <main>
+          <h1>Subscribe</h1>
+
+          <p>
+              Try the successful test card: <span>4242424242424242</span>.
+          </p>
+
+          <p>
+              Try the test card that requires SCA: <span>4000002500003155</span>.
+          </p>
+
+          <p>
+              Use any <i>future</i> expiry date, CVC, and 5 digit postal code.
+          </p>
+
+          <hr />
+
+          <form id="subscribe-form">
+
+              <div id="card-element">
+                  <!-- the card element will be mounted here -->
+              </div>
+
+              <button type="submit">
+                  Donate
+              </button>
+
+              <div id="messages"></div>
+          </form>
+          <p>This page uses the Stripe 'Element' to validate and capture the credit card information. This is all done through Stripe.js (client side library) so our server does not touch the information, so is PCI compliant.</p>
+          <p>Things to consider: </p>
+          <ul>
+              <li>Handling bank verification for example by text message authentication code.</li>
+          </ul>
+      </main>
+  </body>
+</html>
