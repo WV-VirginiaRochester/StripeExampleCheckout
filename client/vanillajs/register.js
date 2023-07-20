@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Create a customer. This will also set a cookie on the server
             // to simulate having a logged in user.
-            const { customer } = await fetch('/create-customer', {
+            const { customer } = await fetch('/create-customer-transaction', {
                 method: 'post',
                 headers: {
                     'Content-Type': 'application/json',

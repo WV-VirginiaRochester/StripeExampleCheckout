@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-public class CreateCustomerRequest
+public class CreateCustomerTransactionRequest
 {
     [JsonProperty("email")]
     public string Email { get; set; }

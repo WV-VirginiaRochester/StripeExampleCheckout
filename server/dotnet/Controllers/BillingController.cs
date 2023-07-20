@@ -24,29 +24,18 @@ namespace dotnet.Controllers
 
         [HttpGet("config")]
         public ActionResult<ConfigResponse> GetConfig()
-        {
-
-            var options = new PriceListOptions
-            {
-                LookupKeys = new List<string>
-              {
-                "sample_basic",
-                "sample_premium"
-              }
-            };
-            var service = new PriceService();
-            var prices = service.List(options);
-
+        {            
             return new ConfigResponse
             {
-                PublishableKey = this.options.Value.PublishableKey,
-                Prices = prices.Data
+                PublishableKey = this.options.Value.PublishableKey               
             };
         }
 
-        [HttpPost("create-customer")]
-        public ActionResult<SubscriptionCreateResponse> CreateCustomer([FromBody] CreateCustomerRequest req)
+        [HttpPost("create-customer-transaction")]
+        public ActionResult<PaymentIntentCreateResponse> CreateCustomerTransaction([FromBody] CreateCustomerTransactionRequest req)
         {
+            //step 1: create customer using email address
+            //it is likely we will use more data than just the email but this is the minimum
             var options = new CustomerCreateOptions
             {
                 Email = req.Email,
@@ -54,18 +43,18 @@ namespace dotnet.Controllers
             var service = new CustomerService();
             var customer = service.Create(options);            
 
-            //VR can we create a payment intent for a one-off payment??
+            //step 2: check the frequency of the payment. If it is just one-off we create a payment intent:
             if (req.Frequency == "one-off")
             {
                 var paymentIntentCreateOptions = new PaymentIntentCreateOptions()
                 {
-                    Amount = long.Parse(req.Amount),
-                    Currency = "cad",
+                    Amount = long.Parse(req.Amount),//amount should always have 00 at end, so $14.00 = '1400'
+                    Currency = "cad",//we need to think about where the currency info should come from: should it always be canadian dollars?
                     Description = req.ProductDescription,
                     Customer = customer.Id,
                     Metadata = new Dictionary<string, string>()
                     {
-                        {"productid", req.Product }
+                        {"productid", req.Product }//an example of adding information to the metadata of this transaction. Alvin is scoping what data we need to add
                     }
                 };
                 var paymentIntentService = new PaymentIntentService();
@@ -74,10 +63,9 @@ namespace dotnet.Controllers
                 {
                     var paymentIntent = paymentIntentService.Create(paymentIntentCreateOptions);
                     HttpContext.Response.Cookies.Append("paymentIntentId", paymentIntent.Id);
-                    return new SubscriptionCreateResponse
+                    return new PaymentIntentCreateResponse
                     {
-                        SubscriptionId = paymentIntent.Id,
-                        ClientSecret = paymentIntent.ClientSecret,
+                        ClientSecret = paymentIntent.ClientSecret,//this is needed for the Stripe Element to confirm card payment
                     };
                 }
                 catch (StripeException e)
@@ -90,7 +78,7 @@ namespace dotnet.Controllers
             else
             {
 
-                //VR can we create a price here using a user defined amount??
+                //step 2: check the frequency of the payment. If it is monthly we create a price based on the product id, then a subsciption with that price:
                 var priceOptions = new PriceCreateOptions
                 {
                     Product = req.Product,
@@ -115,7 +103,13 @@ namespace dotnet.Controllers
                     Console.WriteLine($"Failed to create Price.{e}");
                     return BadRequest();
                 }
-               
+                // Automatically save the payment method to the subscription
+                // when the first payment is successful.
+                var paymentSettings = new SubscriptionPaymentSettingsOptions
+                {
+                    SaveDefaultPaymentMethod = "on_subscription",
+                };
+
                 // Create subscription
                 var subscriptionOptions = new SubscriptionCreateOptions
                 {
@@ -127,18 +121,18 @@ namespace dotnet.Controllers
                             Price = price.Id
                         },
                     },
-                    PaymentBehavior = "default_incomplete",                   
+                    PaymentSettings = paymentSettings,
+                    PaymentBehavior = "default_incomplete",  //On the back end, create the subscription with status incomplete using payment_behavior=default_incomplete.                 
                 };
-                subscriptionOptions.AddExpand("latest_invoice.payment_intent");
+                subscriptionOptions.AddExpand("latest_invoice.payment_intent");//this creates an immediate payment intent to pay now
                 var subscriptionService = new SubscriptionService();
                 try
                 {
                     Subscription subscription = subscriptionService.Create(subscriptionOptions);
                     HttpContext.Response.Cookies.Append("paymentIntentId", subscription.LatestInvoice.PaymentIntent.Id);
-                    return new SubscriptionCreateResponse
+                    return new PaymentIntentCreateResponse
                     {
-                        SubscriptionId = subscription.Id,
-                        ClientSecret = subscription.LatestInvoice.PaymentIntent.ClientSecret,
+                        ClientSecret = subscription.LatestInvoice.PaymentIntent.ClientSecret,//this is needed for the Stripe Element to confirm card payment
                     };
                 }
                 catch (StripeException e)
@@ -153,12 +147,13 @@ namespace dotnet.Controllers
         [HttpGet("payment_result")]
         public ActionResult<PaymentIntentResponse> PaymentResult()
         {
-            var paymentIntentId = HttpContext.Request.Cookies["paymentIntentId"];
-            //var options = new PaymentIntentGetOptions
-            //{
-
-            //};
-            //options.AddExpand("data.default_payment_method");
+            //check if have returned from redirection at banking validation end (in which case the payment_intent will be in query params: see https://stripe.com/docs/billing/subscriptions/build-subscriptions?ui=elements#complete-payment)
+            var paymentIntentId = string.Empty;
+            if (!string.IsNullOrEmpty(Request.Query["payment_intent"]))
+            { paymentIntentId = Request.Query["payment_intent"]; }
+            else //otherwise pick up from the cookie
+            { paymentIntentId = HttpContext.Request.Cookies["paymentIntentId"]; }
+           
             var service = new PaymentIntentService();
             var paymentIntent = service.Get(paymentIntentId);
 
@@ -168,169 +163,5 @@ namespace dotnet.Controllers
             };
         }
 
-
-
-        [HttpGet("invoice-preview")]
-        public ActionResult<InvoiceResponse> InvoicePreview(string subscriptionId, string newPriceLookupKey)
-        {
-            var customerId = HttpContext.Request.Cookies["customer"];
-            var service = new SubscriptionService();
-            var subscription = service.Get(subscriptionId);
-
-            var invoiceService = new InvoiceService();
-            var options = new UpcomingInvoiceOptions
-            {
-                Customer = customerId,
-                Subscription = subscriptionId,
-                SubscriptionItems = new List<InvoiceSubscriptionItemOptions>
-                {
-                    new InvoiceSubscriptionItemOptions
-                    {
-                        Id = subscription.Items.Data[0].Id,
-                        Price = Environment.GetEnvironmentVariable(newPriceLookupKey.ToUpper()),
-                    },
-                }
-            };
-            Invoice upcoming = invoiceService.Upcoming(options);
-            return new InvoiceResponse
-            {
-                Invoice = upcoming,
-            };
-        }
-
-        [HttpPost("cancel-subscription")]
-        public ActionResult<SubscriptionResponse> CancelSubscription([FromBody] CancelSubscriptionRequest req)
-        {
-            var service = new SubscriptionService();
-            var subscription = service.Cancel(req.Subscription, null);
-            return new SubscriptionResponse
-            {
-                Subscription = subscription,
-            };
-        }
-
-        [HttpPost("update-subscription")]
-        public ActionResult<SubscriptionResponse> UpdateSubscription([FromBody] UpdateSubscriptionRequest req)
-        {
-            var service = new SubscriptionService();
-            var subscription = service.Get(req.Subscription);
-
-            var options = new SubscriptionUpdateOptions
-            {
-                CancelAtPeriodEnd = false,
-                Items = new List<SubscriptionItemOptions>
-                {
-                    new SubscriptionItemOptions
-                    {
-                        Id = subscription.Items.Data[0].Id,
-                        Price = Environment.GetEnvironmentVariable(req.NewPrice.ToUpper()),
-                    }
-                }
-            };
-            var updatedSubscription = service.Update(req.Subscription, options);
-            return new SubscriptionResponse
-            {
-                Subscription = updatedSubscription,
-            };
-        }
-
-        [HttpGet("subscriptions")]
-        public ActionResult<SubscriptionsResponse> ListSubscriptions()
-        {
-            var customerId = HttpContext.Request.Cookies["customer"];
-            var options = new SubscriptionListOptions
-            {
-                Customer = customerId,
-                Status = "all",
-            };
-            options.AddExpand("data.default_payment_method");
-            var service = new SubscriptionService();
-            var subscriptions = service.List(options);
-
-            return new SubscriptionsResponse
-            {
-                Subscriptions = subscriptions,
-            };
-        }
-
-
-        [HttpPost("webhook")]
-        public async Task<IActionResult> Webhook()
-        {
-            var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
-            Event stripeEvent;
-            try
-            {
-                stripeEvent = EventUtility.ConstructEvent(
-                    json,
-                    Request.Headers["Stripe-Signature"],
-                    this.options.Value.WebhookSecret
-                );
-                Console.WriteLine($"Webhook notification with type: {stripeEvent.Type} found for {stripeEvent.Id}");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Something failed {e}");
-                return BadRequest();
-            }
-
-            if (stripeEvent.Type == "invoice.payment_succeeded")
-            {
-                var invoice = stripeEvent.Data.Object as Invoice;
-
-                if (invoice.BillingReason == "subscription_create")
-                {
-                    // The subscription automatically activates after successful payment
-                    // Set the payment method used to pay the first invoice
-                    // as the default payment method for that subscription
-
-                    // Retrieve the payment intent used to pay the subscription
-                    var service = new PaymentIntentService();
-                    var paymentIntent = service.Get(invoice.PaymentIntentId);
-
-                    // Set the default payment method
-                    var options = new SubscriptionUpdateOptions
-                    {
-                        DefaultPaymentMethod = paymentIntent.PaymentMethodId,
-                    };
-                    var subscriptionService = new SubscriptionService();
-                    subscriptionService.Update(invoice.SubscriptionId, options);
-
-                    Console.WriteLine($"Default payment method set for subscription: {paymentIntent.PaymentMethodId}");
-                }
-                Console.WriteLine($"Payment succeeded for invoice: {stripeEvent.Id}");
-            }
-
-            if (stripeEvent.Type == "invoice.paid")
-            {
-                // Used to provision services after the trial has ended.
-                // The status of the invoice will show up as paid. Store the status in your
-                // database to reference when a user accesses your service to avoid hitting rate
-                // limits.
-            }
-            if (stripeEvent.Type == "invoice.payment_failed")
-            {
-                // If the payment fails or the customer does not have a valid payment method,
-                // an invoice.payment_failed event is sent, the subscription becomes past_due.
-                // Use this webhook to notify your user that their payment has
-                // failed and to retrieve new card details.
-            }
-            if (stripeEvent.Type == "invoice.finalized")
-            {
-                // If you want to manually send out invoices to your customers
-                // or store them locally to reference to avoid hitting Stripe rate limits.
-            }
-            if (stripeEvent.Type == "customer.subscription.deleted")
-            {
-                // handle subscription cancelled automatically based
-                // upon your subscription settings. Or if the user cancels it.
-            }
-            if (stripeEvent.Type == "customer.subscription.trial_will_end")
-            {
-                // Send notification to your user that the trial will end
-            }
-
-            return Ok();
-        }
     }
 }
