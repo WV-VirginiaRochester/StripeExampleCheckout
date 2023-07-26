@@ -24,11 +24,12 @@ namespace dotnet.Controllers
 
         [HttpGet("config")]
         public ActionResult<ConfigResponse> GetConfig()
-        {            
+        {
             return new ConfigResponse
             {
-                PublishableKey = this.options.Value.PublishableKey               
+                PublishableKey = this.options.Value.PublishableKey
             };
+            //return Json(new { publishableKey = this.options.Value.PublishableKey });
         }
 
         [HttpPost("create-customer-transaction")]
