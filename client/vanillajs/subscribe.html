@@ -21,14 +21,14 @@
           </p>
 
           <p>
-              Use any <i>future</i> expiry date, CVC, and 5 digit postal code.
+              Use any <i>future</i> expiry date, CVC, and any 5 at least character postal code.
           </p>
 
           <hr />
 
           <form id="payment-form">
 
-              <div id="payment-element">
+              <div id="payment-element" style="border-style:dashed; border-color:red; border-width:thick">
                   <!-- the card element will be mounted here -->
               </div>
 
@@ -38,11 +38,7 @@
 
               <div id="messages"></div>
           </form>
-          <p>This page uses the Stripe 'Element' to validate and capture the credit card information. This is all done through Stripe.js (client side library) so our server does not touch the information, so is PCI compliant.</p>
-          <p>Things to consider: </p>
-          <ul>
-              <li>Handling bank verification for example by text message authentication code.</li>
-          </ul>
+          <p>This page uses the Stripe 'Element' to validate and capture the credit card information. This is all done through Stripe.js (client side library) so our server does not touch the information, so is PCI compliant.</p>         
       </main>
   </body>
 </html>

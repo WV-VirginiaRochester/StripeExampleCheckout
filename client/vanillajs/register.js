@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.sessionStorage.setItem('clientSecret', data.clientSecret);
                     window.location.href = '/subscribe.html';
                 })
-
               .catch((error) => {
                     console.error('Error:', error);
                 });

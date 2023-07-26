@@ -52,10 +52,10 @@ namespace dotnet.Controllers
                     Amount = long.Parse(req.Amount),//amount should always have 00 at end, so $14.00 = '1400'
                     Currency = "cad",//we need to think about where the currency info should come from: should it always be canadian dollars?
                     Description = req.ProductDescription,
-                    Customer = customer.Id,
+                    Customer = customer.Id,                    
                     Metadata = new Dictionary<string, string>()
                     {
-                        {"productid", req.Product }//an example of adding information to the metadata of this transaction. Alvin is scoping what data we need to add
+                        {"ExampleMetadata", "here is some test metadata" }//an example of adding information to the metadata of this transaction. Alvin is scoping what data we need to add
                     }
                 };
                 var paymentIntentService = new PaymentIntentService();
@@ -124,6 +124,10 @@ namespace dotnet.Controllers
                     },
                     PaymentSettings = paymentSettings,
                     PaymentBehavior = "default_incomplete",  //On the back end, create the subscription with status incomplete using payment_behavior=default_incomplete.                 
+                    Metadata = new Dictionary<string, string>()
+                    {
+                        {"ExampleMetadata", "here is some test metadata" }//an example of adding information to the metadata of this transaction. Alvin is scoping what data we need to add
+                    }
                 };
                 subscriptionOptions.AddExpand("latest_invoice.payment_intent");//this creates an immediate payment intent to pay now
                 var subscriptionService = new SubscriptionService();

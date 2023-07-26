@@ -15,6 +15,7 @@ const stripe = Stripe('pk_test_51McVyAJKcS7rKiSnufTfBQU3EUKxoZezQBf7SCa6tJUMbPgh
 const clientSecret = window.sessionStorage.getItem('clientSecret');
 const addressForBillingDetails = {
     postal_code: 'NG7 1JR',
+    country:'ca',
 };
 const billingDetailsForDefaultValues = {
     address: addressForBillingDetails,
@@ -22,13 +23,16 @@ const billingDetailsForDefaultValues = {
 const defaultValuesForOptions = {
     billingDetails: billingDetailsForDefaultValues,
 };
+const appearanceForOptions = {
+    theme: 'stripe',
+};
 
 const options = {
     clientSecret: clientSecret,
     defaultValues: defaultValuesForOptions,
     layout:'tabs',
     // Fully customizable with appearance API.
-    appearance: {/*...*/ },
+    appearance: appearanceForOptions,
 };
 
 // Set up Stripe.js and Elements to use in checkout form, passing the client secret obtained in step 5
@@ -37,11 +41,9 @@ const elements = stripe.elements(options);
 // Create and mount the Payment Element
 const paymentElement = elements.create('payment');
 paymentElement.mount('#payment-element');
-paymentElement.update({ business: { name: 'Stripe Shop' } });
 
 // Extract the client secret query string argument. This is
 // required to confirm the payment intent from the front-end.
-const subscriptionId = window.sessionStorage.getItem('subscriptionId');
 
 // This sample only supports a Subscription with payment
 // upfront. If you offer a trial on your subscription, then
